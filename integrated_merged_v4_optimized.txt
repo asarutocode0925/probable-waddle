@@ -1,0 +1,1906 @@
+local P=game:GetService("Players")
+local R=game:GetService("RunService")
+local U=game:GetService("UserInputService")
+local function GH()
+    if gethui then
+        local ok,h=pcall(gethui)
+        if ok and h then return h end
+    end
+    local ok,h=pcall(function() return game:GetService("CoreGui") end)
+    if ok and h then return h end
+    return L:WaitForChild("PlayerGui")
+end
+local G=GH()
+local SG=game:GetService("StarterGui")
+local T=game:GetService("TweenService")
+local LG=game:GetService("Lighting")
+local RS=game:GetService("ReplicatedStorage")
+local L=P.LocalPlayer
+local C=workspace.CurrentCamera
+local N=Instance.new
+local V2=Vector2.new
+local V3=Vector3.new
+local K=Color3.fromRGB
+local F=math.floor
+local CL=math.clamp
+local A=math.abs
+local GP=P.GetPlayers
+local RC=workspace.Raycast
+local WV=C.WorldToViewportPoint
+local CF=CFrame.new
+local UD=UDim2.new
+
+local function NT(t,x,d)
+    pcall(function()
+        SG:SetCore("SendNotification",{Title=t,Text=x,Duration=d or 2})
+    end)
+end
+
+local function RD() return tostring(math.random(1e5,9e5)) end
+
+local S={
+    Aim=false,Smooth=.18,FOV=90,FOVCircle=false,
+    Silent=false,SilentMode="Hook",SilentSmooth=.35,
+    Trig=false,TrigD=.12,AI=true,Pred=.12,VisCheck=true,MaxDist=500,
+    AutoShoot=false,AutoShootDelay=.08,
+    Skel=true,Trace=false,Chams=true,Info=true,Team=true,ESPDist=false,
+    ESPBox=false,ESPWallCheck="None",Hitbox=false,HBV=2,
+    Spd=false,SpdV=28,Jmp=false,JmpV=80,
+    Fly=false,FlyV=50,Noclip=false,InfJ=false,
+    AB_Kick=false,AB_TP=false,AB_Char=false,AB_Remote=false,AB_Move=false,
+    AntiAC=true,Fullbright=false,LightOpt=false,
+    ESPHealthBar=false,ESPNameTag=false,ESPHealthText=false,ESPThreatLevel=false,
+    ESPRainbow=false,ESPDistanceFade=true,ESPTeamColor=true,
+    AimPriority="Distance",AimWallBang=false,AimSmoothing="Linear",
+    PredictionType="Velocity",InstantSnap=false,
+    PlayerHUD=false,NearestPlayerHUD=false,TargetIndicator=false,TracerToTarget=false,
+    AntiFling=false,HitNotify=false,NoKillFlash=false,
+    RenderThrottle=1,Whitelist={}
+}
+
+task.wait(math.random(3,8)/10)
+
+pcall(function()
+    for _,v in G:GetChildren() do
+        if v.Name:match("^[FGK]%d") then v:Destroy() end
+    end
+end)
+
+local AC=K(160,80,255)
+local TG=K(80,200,120)
+local FD=N("Folder",G)
+FD.Name="F"..RD()
+
+local B15={{"Head","UpperTorso"},{"UpperTorso","LowerTorso"},{"UpperTorso","LeftUpperArm"},{"LeftUpperArm","LeftLowerArm"},{"LeftLowerArm","LeftHand"},{"UpperTorso","RightUpperArm"},{"RightUpperArm","RightLowerArm"},{"RightLowerArm","RightHand"},{"LowerTorso","LeftUpperLeg"},{"LeftUpperLeg","LeftLowerLeg"},{"LeftLowerLeg","LeftFoot"},{"LowerTorso","RightUpperLeg"},{"RightUpperLeg","RightLowerLeg"},{"RightLowerLeg","RightFoot"}}
+local B6={{"Head","Torso"},{"Torso","Left Arm"},{"Torso","Right Arm"},{"Torso","Left Leg"},{"Torso","Right Leg"}}
+
+local PL_={a={},f={}}
+local function AL()
+    local l=table.remove(PL_.f)
+    if l then l.Visible=true PL_.a[l]=true return l end
+    l=Drawing.new("Line")
+    l.Color=Color3.new(1,1,1)
+    l.Thickness=1.6
+    l.Visible=true
+    PL_.a[l]=true
+    return l
+end
+local function RL(l)
+    if not PL_.a[l] then return end
+    PL_.a[l]=nil
+    l.Visible=false
+    table.insert(PL_.f,l)
+end
+
+local D,HB={},{}
+local VC=setmetatable({},{__mode="k"})
+local FV,FG,NC,IJ
+local FM=nil,LS=0,LA=0
+local SIT=nil,TT=nil,FS=0
+local VP=V2(C.ViewportSize.X/2,C.ViewportSize.Y/2)
+local RP=RaycastParams.new()
+RP.FilterType=Enum.RaycastFilterType.Exclude
+RP.IgnoreWater=true
+local VFL={C}
+local FCO=nil
+
+local function UFO()
+    if S.FOVCircle then
+        if not FCO then
+            FCO=Drawing.new("Circle")
+            FCO.NumSides=60
+            FCO.Thickness=1.5
+            FCO.Filled=false
+            FCO.Transparency=.7
+            FCO.Color=AC
+        end
+        FCO.Position=VP
+        FCO.Radius=S.FOV
+        FCO.Visible=true
+    elseif FCO then
+        FCO.Visible=false
+    end
+end
+
+C:GetPropertyChangedSignal("ViewportSize"):Connect(function()
+    VP=V2(C.ViewportSize.X/2,C.ViewportSize.Y/2)
+    if FCO then FCO.Position=VP end
+end)
+
+local function IL()
+    local pg=L:FindFirstChild("PlayerGui")
+    if not pg then return false end
+    for _,g in pg:GetChildren() do
+        if g:IsA("ScreenGui") and g.Enabled then
+            local n=g.Name:lower()
+            if n:find("lobby") or n:find("mainmenu") then return true end
+        end
+    end
+    return false
+end
+
+if S.AntiAC then
+    task.spawn(function()
+        local tg={"anticheat","ac","detection","ban","kick","security","moderation"}
+        local function ck(o)
+            if not o:IsA("LocalScript") then return end
+            local n=o.Name:lower()
+            for i=1,#tg do
+                if n:find(tg[i],1,true) then
+                    pcall(function() o.Disabled=true end)
+                    return
+                end
+            end
+        end
+        for _,o in game:GetDescendants() do ck(o) end
+        game.DescendantAdded:Connect(ck)
+        if hookfunction and newcclosure and getgc then
+            pcall(function()
+                local gc=getgc(false)
+                for i=1,#gc do
+                    local fn=gc[i]
+                    if type(fn)~="function" then continue end
+                    local ok,ct=pcall(debug.getconstants,fn)
+                    if ok and ct then
+                        for j=1,#ct do
+                            local c=ct[j]
+                            if type(c)=="string" and (c:find("TakeTheL") or c:find("RemoteKick") or c:find("BanAsync")) then
+                                pcall(function() hookfunction(fn,function() end) end)
+                                break
+                            end
+                        end
+                    end
+                end
+            end)
+        end
+    end)
+end
+
+local ONC,UH,IO,IH
+local AB={active=false,conns={},orig={},hr={}}
+
+local function SHK()
+    if not getrawmetatable or not setreadonly or not newcclosure then return end
+    pcall(function()
+        local mt=getrawmetatable(game)
+        if not mt then return end
+        ONC=mt.__namecall
+        UH=newcclosure(function(s,...)
+            local m=getnamecallmethod and getnamecallmethod() or ""
+            if checkcaller and checkcaller() then return ONC(s,...) end
+            if s==L and AB.active then
+                local ml=m:lower()
+                if ml=="kick" or ml=="destroy" or ml:find("kick",1,true) then return nil end
+            end
+            if SIT and S.Silent and S.SilentMode=="Hook" then
+                if m=="FindPartOnRay" or m=="Raycast" then
+                    local a={...}
+                    local tp=SIT.Position
+                    a[1]=Ray.new(C.CFrame.Position,(tp-C.CFrame.Position).Unit*1000)
+                    return ONC(s,table.unpack(a))
+                end
+            end
+            return ONC(s,...)
+        end)
+        setreadonly(mt,false)
+        mt.__namecall=UH
+        setreadonly(mt,true)
+        IO=mt.__index
+        IH=newcclosure(function(s,k)
+            if SIT and S.Silent and S.SilentMode=="Hook" and not (checkcaller and checkcaller()) then
+                if s==C or s==workspace then
+                    if k=="Hit" then return CF(SIT.Position) end
+                    if k=="Target" then return SIT end
+                end
+            end
+            return IO(s,k)
+        end)
+        setreadonly(mt,false)
+        mt.__index=IH
+        setreadonly(mt,true)
+    end)
+end
+SHK()
+
+-- ===== 3.lua integrated =====
+local function MESP(p)
+    if p==L then return end
+    local pn=p.Name
+    if D[pn] then return end
+    if S.Team and p.Team and L.Team and p.Team==L.Team then return end
+    local c=p.Character
+    if not c then return end
+    local h=c:FindFirstChildOfClass("Humanoid")
+    local r=c:FindFirstChild("HumanoidRootPart")
+    if not h or h.Health<=0 or not r then return end
+    local iT=p.Team and L.Team and p.Team==L.Team
+    local b=c:FindFirstChild("UpperTorso") and B15 or B6
+    local n=#b
+    local LL,PR={},{}
+    for i=1,n do
+        LL[i]=AL()
+        PR[i]={c:FindFirstChild(b[i][1]),c:FindFirstChild(b[i][2])}
+    end
+    local tL=AL()
+    local hl=N("Highlight",FD)
+    hl.Adornee=c
+    hl.FillColor=iT and TG or AC
+    hl.OutlineColor=Color3.new(1,1,1)
+    hl.FillTransparency=.7
+    hl.OutlineTransparency=.15
+    hl.DepthMode=Enum.HighlightDepthMode.AlwaysOnTop
+    hl.Enabled=S.Chams
+    local bb=N("BillboardGui",FD)
+    bb.Adornee=r
+    bb.Size=UD(0,140,0,32)
+    bb.StudsOffset=V3(0,3,0)
+    bb.AlwaysOnTop=true
+    bb.MaxDistance=2000
+    local nl=N("TextLabel",bb)
+    nl.Size=UD(1,0,0,16)
+    nl.BackgroundTransparency=1
+    nl.Text=pn
+    nl.TextColor3=iT and K(80,220,140) or Color3.new(1,1,1)
+    nl.TextStrokeTransparency=.3
+    nl.Font=Enum.Font.GothamBold
+    nl.TextSize=12
+    nl.Visible=S.Info
+    local dl=N("TextLabel",bb)
+    dl.Size=UD(1,0,0,14)
+    dl.Position=UD(0,0,0,16)
+    dl.BackgroundTransparency=1
+    dl.Text="0m"
+    dl.TextColor3=K(200,200,200)
+    dl.TextStrokeTransparency=.3
+    dl.Font=Enum.Font.Gotham
+    dl.TextSize=11
+    dl.Visible=S.Info or S.ESPDist
+    local bx=nil
+    if S.ESPBox then
+        bx=Drawing.new("Square")
+        bx.Thickness=1.5
+        bx.Filled=false
+        bx.Transparency=1
+        bx.Color=iT and TG or AC
+        bx.Visible=false
+    end
+    D[pn]={C=c,L=LL,BP=PR,T=tL,H=hl,BB=bb,NL=nl,DL=dl,R=r,lD=-1,SC={},Team=iT,Box=bx,HB=nil,HBBg=nil}
+end
+
+local function CP(n)
+    local d=D[n]
+    if not d then return end
+    for i=1,#d.L do RL(d.L[i]) end
+    RL(d.T)
+    for _,k in {"Box","HB","HBBg"} do
+        if d[k] then pcall(d[k].Remove,d[k]) end
+    end
+    if d.H then pcall(d.H.Destroy,d.H) end
+    if d.BB then pcall(d.BB.Destroy,d.BB) end
+    D[n]=nil
+end
+
+local function AH(p)
+    if not S.Hitbox or p==L then return end
+    local c=p.Character
+    if not c or HB[p.Name] then return end
+    local t=c:FindFirstChild("UpperTorso") and {"Head","HumanoidRootPart","UpperTorso","LowerTorso"} or {"Head","HumanoidRootPart","Torso"}
+    local sv={}
+    for i=1,#t do
+        local x=c:FindFirstChild(t[i])
+        if x and x:IsA("BasePart") then
+            sv[t[i]]={x.Size,x.Massless,x.CanCollide}
+            x.Size=x.Size*S.HBV
+            x.Massless=true
+            x.CanCollide=false
+        end
+    end
+    HB[p.Name]=sv
+end
+
+local function RH(n)
+    local t=HB[n]
+    if not t then return end
+    local p=P:FindFirstChild(n)
+    local c=p and p.Character
+    if c then
+        for pn,d in t do
+            local x=c:FindFirstChild(pn)
+            if x and x:IsA("BasePart") then
+                pcall(function()
+                    x.Size=d[1]
+                    x.Massless=d[2]
+                    x.CanCollide=d[3]
+                end)
+            end
+        end
+    end
+    HB[n]=nil
+end
+
+local function RFH()
+    for n in HB do RH(n) end
+    if S.Hitbox then
+        for _,p in GP(P) do
+            if p~=L then AH(p) end
+        end
+    end
+end
+
+local function RFE()
+    for n in D do CP(n) end
+    for _,p in GP(P) do
+        if p~=L and p.Character then MESP(p) end
+    end
+end
+
+local function IV(pt,pl)
+    if not pt then return false end
+    local nw=tick()
+    local c=VC[pl]
+    if c and nw-c.t<.2 then return c.v end
+    VFL[1]=C
+    VFL[2]=L.Character
+    RP.FilterDescendantsInstances=VFL
+    local ry=RC(workspace,C.CFrame.Position,pt.Position-C.CFrame.Position,RP)
+    local rs
+    if not ry then rs=true
+    else
+        local m=ry.Instance:FindFirstAncestorOfClass("Model")
+        rs=m and m==pt.Parent and m:FindFirstChildOfClass("Humanoid")~=nil
+    end
+    VC[pl]={t=nw,v=rs}
+    return rs
+end
+
+local function PP(pt)
+    if not S.AI or not pt then return pt.Position end
+    local r=pt.Parent and pt.Parent:FindFirstChild("HumanoidRootPart")
+    if not r then return pt.Position end
+    local v=r.AssemblyLinearVelocity
+    if S.PredictionType=="Acceleration" then
+        local a=r:GetAttribute("Acceleration") or V3(0,0,0)
+        return pt.Position+v*S.Pred+.5*a*S.Pred*S.Pred
+    elseif S.PredictionType=="Gravity" then
+        return pt.Position+v*S.Pred+V3(0,-workspace.Gravity*S.Pred*S.Pred*.5,0)
+    end
+    return pt.Position+v*S.Pred
+end
+
+local function GT()
+    local myT=L.Team
+    local tc=S.Team and myT
+    local myC=L.Character
+    local myP=myC and myC:FindFirstChild("HumanoidRootPart")
+    if not myP then return nil end
+    local mp=myP.Position
+    local cs={}
+    for _,p in GP(P) do
+        if p==L then continue end
+        if tc and p.Team==myT then continue end
+        local ch=p.Character
+        if not ch then continue end
+        local h=ch:FindFirstChildOfClass("Humanoid")
+        if not h or h.Health<=0 then continue end
+        local pt=ch:FindFirstChild("Head") or ch:FindFirstChild("HumanoidRootPart")
+        if not pt then continue end
+        local d=(pt.Position-mp).Magnitude
+        if d>S.MaxDist then continue end
+        if S.VisCheck and not S.AimWallBang and not IV(pt,p) then continue end
+        local sp,on=WV(C,PP(pt))
+        if not (on and sp.Z>0) then continue end
+        local sd=(V2(sp.X,sp.Y)-VP).Magnitude
+        if sd>S.FOV then continue end
+        table.insert(cs,{P=pt,D=d,SD=sd,H=h.Health,W=S.Whitelist[p.Name]==true})
+    end
+    if #cs==0 then return nil end
+    table.sort(cs,function(a,b)
+        if a.W~=b.W then return a.W end
+        if S.AimPriority=="Health" then return a.H<b.H end
+        if S.AimPriority=="Threat" then
+            return (a.H*.5+a.D*.01)<(b.H*.5+b.D*.01)
+        end
+        return a.SD<b.SD
+    end)
+    local b=cs[1]
+    if S.InstantSnap then
+        pcall(function() C.CFrame=CF(C.CFrame.Position,PP(b.P)) end)
+    end
+    return b.P
+end
+
+local function AS()
+    local c=L.Character
+    if c then
+        local h=c:FindFirstChildOfClass("Humanoid")
+        if h then h.WalkSpeed=S.Spd and S.SpdV or 16 end
+    end
+end
+
+local function AJ()
+    local c=L.Character
+    if c then
+        local h=c:FindFirstChildOfClass("Humanoid")
+        if h then
+            h.JumpPower=S.Jmp and S.JmpV or 50
+            h.UseJumpPower=true
+        end
+    end
+end
+
+local FlyCtrl
+
+local function TF(on)
+    S.Fly=on
+    FM=nil
+    local c=L.Character
+    if not c then return end
+    local r,h=c:FindFirstChild("HumanoidRootPart"),c:FindFirstChildOfClass("Humanoid")
+    if not r or not h then return end
+    if on then
+        h.PlatformStand=true
+        FV=N("BodyVelocity",r)
+        FV.MaxForce=V3(9e9,9e9,9e9)
+        FV.Velocity=V3(0,0,0)
+        FG=N("BodyGyro",r)
+        FG.MaxTorque=V3(9e9,9e9,9e9)
+        FG.P=9e4
+    else
+        h.PlatformStand=false
+        if FV then FV:Destroy() FV=nil end
+        if FG then FG:Destroy() FG=nil end
+    end
+end
+
+local function TNC(on)
+    S.Noclip=on
+    if NC then NC:Disconnect() NC=nil end
+    if on then
+        NC=R.Stepped:Connect(function()
+            local c=L.Character
+            if c then
+                for _,p in c:GetDescendants() do
+                    if p:IsA("BasePart") then p.CanCollide=false end
+                end
+            end
+        end)
+    end
+end
+
+local function TIJ(on)
+    S.InfJ=on
+    if IJ then IJ:Disconnect() IJ=nil end
+    if on then
+        IJ=U.JumpRequest:Connect(function()
+            local c=L.Character
+            if c then
+                local h=c:FindFirstChildOfClass("Humanoid")
+                if h then h:ChangeState(Enum.HumanoidStateType.Jumping) end
+            end
+        end)
+    end
+end
+
+local OL={}
+local function TL(on)
+    S.LightOpt=on
+    if on then
+        OL.g,OL.f,OL.b=LG.GlobalShadows,LG.FogEnd,LG.Brightness
+        pcall(function()
+            LG.GlobalShadows=false
+            LG.FogEnd=1e5
+            LG.Brightness=2
+        end)
+    else
+        pcall(function()
+            if OL.g~=nil then LG.GlobalShadows=OL.g end
+            if OL.f~=nil then LG.FogEnd=OL.f end
+            if OL.b~=nil then LG.Brightness=OL.b end
+        end)
+    end
+end
+
+local OB={}
+local function TFB(on)
+    S.Fullbright=on
+    if on then
+        OB.b,OB.a,OB.o=LG.Brightness,LG.Ambient,LG.OutdoorAmbient
+        pcall(function()
+            LG.Brightness=3
+            LG.Ambient=K(180,180,180)
+            LG.OutdoorAmbient=K(180,180,180)
+        end)
+    else
+        pcall(function()
+            if OB.b then LG.Brightness=OB.b end
+            if OB.a then LG.Ambient=OB.a end
+            if OB.o then LG.OutdoorAmbient=OB.o end
+        end)
+    end
+end
+
+local function EK(on)
+    if AB.active and on then return end
+    if not on and not AB.active then return end
+    AB.active=on
+    if on then
+        if AB.orig.K==nil then AB.orig.K=L.Kick end
+        if hookfunction and newcclosure then
+            pcall(function()
+                hookfunction(L.Kick,newcclosure(function(s,m)
+                    if checkcaller and checkcaller() then return AB.orig.K(s,m) end
+                    if s==L then return nil end
+                    return AB.orig.K(s,m)
+                end))
+            end)
+        end
+        AB.conns.An=L.AncestryChanged:Connect(function(_,pr)
+            if pr==nil then pcall(function() L.Parent=P end) end
+        end)
+        local function su(n)
+            local l=n:lower()
+            for _,w in {"kick","ban","detect","flag","punish","disconnect","exploit","cheat","terminate"} do
+                if l:find(w,1,true) then return true end
+            end
+        end
+        local function hR(o)
+            if AB.hr[o] then return end
+            AB.hr[o]=true
+            if o.FireServer and hookfunction and newcclosure then
+                pcall(function()
+                    local og=o.FireServer
+                    hookfunction(og,newcclosure(function(s,...)
+                        local a={...}
+                        local r=tostring(a[1] or ""):lower()
+                        if r:find("kick",1,true) or r:find("ban",1,true) or r:find("detect",1,true) then
+                            return nil
+                        end
+                        return og(s,...)
+                    end))
+                end)
+            end
+        end
+        for _,o in RS:GetDescendants() do
+            if (o:IsA("RemoteEvent") or o:IsA("RemoteFunction")) and su(o.Name) then hR(o) end
+        end
+        AB.conns.R=RS.DescendantAdded:Connect(function(o)
+            if (o:IsA("RemoteEvent") or o:IsA("RemoteFunction")) and su(o.Name) then hR(o) end
+        end)
+        local cn=0
+        AB.conns.W=R.Heartbeat:Connect(function()
+            cn=cn+1
+            if cn>=30 then
+                cn=0
+                if L.Parent~=P then pcall(function() L.Parent=P end) end
+            end
+        end)
+    else
+        if AB.orig.K and hookfunction then
+            pcall(function() hookfunction(L.Kick,AB.orig.K) end)
+        end
+        for _,c in AB.conns do
+            if c then pcall(function() c:Disconnect() end) end
+        end
+        AB.conns={}
+        AB.hr={}
+    end
+end
+
+local function ETP(on)
+    S.AB_TP=on
+    if AB.conns.TP then AB.conns.TP:Disconnect() AB.conns.TP=nil end
+    if on then
+        local lt
+        AB.conns.TP=R.Heartbeat:Connect(function()
+            local c=L.Character
+            local h=c and c:FindFirstChild("HumanoidRootPart")
+            if not h then return end
+            local ps=h.Position
+            if lt and (ps-lt).Magnitude>80 and not S.Fly and not S.Noclip then
+                pcall(function() h.CFrame=CF(lt) end)
+            end
+            lt=ps
+        end)
+    end
+end
+
+local function EC(on)
+    S.AB_Char=on
+    if AB.conns.CH then AB.conns.CH:Disconnect() AB.conns.CH=nil end
+    if on then
+        AB.conns.CH=L.CharacterRemoving:Connect(function()
+            task.delay(.5,function()
+                if L.Character then
+                    if not D[L.Name] then pcall(MESP,L) end
+                    if S.Hitbox and not HB[L.Name] then pcall(AH,L) end
+                end
+            end)
+        end)
+    end
+end
+
+local function ER(on)
+    S.AB_Remote=on
+    if AB.conns.RM then AB.conns.RM:Disconnect() AB.conns.RM=nil end
+    if on then
+        AB.conns.RM=RS.DescendantAdded:Connect(function(o)
+            if o:IsA("RemoteEvent") or o:IsA("RemoteFunction") then
+                local l=o.Name:lower()
+                for _,k in {"kick","ban","detect","report","flag","cheat","exploit"} do
+                    if l:find(k,1,true) then
+                        if hookfunction and newcclosure and o.FireServer then
+                            pcall(function() hookfunction(o.FireServer,newcclosure(function() end)) end)
+                        end
+                        break
+                    end
+                end
+            end
+        end)
+    end
+end
+
+local function EM(on)
+    S.AB_Move=on
+    if AB.conns.MV then AB.conns.MV:Disconnect() AB.conns.MV=nil end
+    if on then
+        AB.conns.MV=R.Stepped:Connect(function()
+            local c=L.Character
+            local h=c and c:FindFirstChildOfClass("Humanoid")
+            local r=c and c:FindFirstChild("HumanoidRootPart")
+            if not h or not r then return end
+            pcall(function()
+                h:SetAttribute("Speed",16)
+                h:SetAttribute("Velocity",r.AssemblyLinearVelocity.Magnitude)
+            end)
+        end)
+    end
+end
+
+local function FT()
+    local c=L.Character
+    if not c then return end
+    local t=c:FindFirstChildOfClass("Tool")
+    if not t then return end
+    pcall(function() t:Activate() end)
+    if mouse1click then pcall(mouse1click) end
+    if mouse1press and mouse1release then
+        pcall(mouse1press)
+        task.wait(.02)
+        pcall(mouse1release)
+    end
+end
+
+local function LC()
+    if not TT then return end
+    local tp=PP(TT)
+    local sp=WV(C,tp)
+    if sp.Z<=0 then return end
+    local m=U:GetMouseLocation()
+    local dx=(sp.X-m.X)*S.SilentSmooth
+    local dy=(sp.Y-m.Y)*S.SilentSmooth
+    if mousemoverel then pcall(mousemoverel,dx,dy) end
+end
+
+local function TS(tg)
+    local tp=PP(tg)
+    if S.Silent then
+        if S.SilentMode=="Hook" then
+            SIT=tg
+            FT()
+            task.delay(.08,function() if SIT==tg then SIT=nil end end)
+        else
+            FT()
+        end
+        return
+    end
+    local c=L.Character
+    if not c then return end
+    local r=c:FindFirstChild("HumanoidRootPart")
+    local h=c:FindFirstChildOfClass("Humanoid")
+    if not r or not h then return end
+    C.CFrame=CF(C.CFrame.Position,tp)
+    h.AutoRotate=false
+    r.CFrame=CF(r.Position,V3(tp.X,r.Position.Y,tp.Z))
+    task.wait(.02)
+    FT()
+    task.delay(.08,function() if h and h.Parent then h.AutoRotate=true end end)
+end
+
+local OLp=CFrame.Lerp
+local function SCF(a,b,f)
+    if S.AimSmoothing=="Exponential" then
+        return OLp(a,b,f*f)
+    elseif S.AimSmoothing=="Bezier" then
+        local m=OLp(a,b,.5)
+        local p1=OLp(a,m,f)
+        local p2=OLp(m,b,f)
+        return OLp(p1,p2,f)
+    end
+    return OLp(a,b,f)
+end
+
+local RH_=0
+local function UE()
+    RH_=(RH_+.005)%1
+    local rc=Color3.fromHSV(RH_,.8,1)
+    for nm,d in D do
+        if not (d.C and d.C.Parent) then continue end
+        local h=d.C:FindFirstChildOfClass("Humanoid")
+        local hd=d.C:FindFirstChild("Head")
+        local ds=(d.R.Position-C.CFrame.Position).Magnitude
+        local fd=1
+        if S.ESPDistanceFade then fd=CL(1-(ds/S.MaxDist)*.7,.3,1) end
+        local bc
+        if S.ESPRainbow then bc=rc
+        elseif S.ESPTeamColor and d.Team then bc=TG
+        else
+            if ds<=750 then bc=K(255,105,180)
+            elseif ds<=1875 then bc=K(255,80,80)
+            else bc=K(80,220,120) end
+        end
+        if S.ESPHealthBar and h and hd then
+            if not d.HB then
+                d.HB=Drawing.new("Square")
+                d.HB.Filled=true
+                d.HB.Thickness=0
+                d.HBBg=Drawing.new("Square")
+                d.HBBg.Filled=true
+                d.HBBg.Color=K(20,15,25)
+            end
+            local hv,ho=WV(C,hd.Position+V3(0,1.2,0))
+            local bv,bo=WV(C,d.R.Position-V3(0,2,0))
+            if ho and bo and hv.Z>0 and bv.Z>0 then
+                local bh=A(bv.Y-hv.Y)
+                local bw=math.max(bh*.55,25)
+                local hp=h.Health/h.MaxHealth
+                d.HBBg.Size=V2(bw+2,bh+2)
+                d.HBBg.Position=V2(hv.X-bw/2-1,hv.Y-1)
+                d.HBBg.Transparency=.7*fd
+                d.HBBg.Visible=true
+                d.HB.Size=V2(bw*hp,bh)
+                d.HB.Position=V2(hv.X-bw/2,hv.Y)
+                d.HB.Color=K(255*(1-hp),255*hp,60)
+                d.HB.Transparency=.4*fd
+                d.HB.Visible=true
+            else
+                if d.HB then d.HB.Visible=false end
+                if d.HBBg then d.HBBg.Visible=false end
+            end
+        elseif d.HB then
+            d.HB.Visible=false
+            if d.HBBg then d.HBBg.Visible=false end
+        end
+        if S.Skel then
+            for i=1,#d.L do
+                if d.L[i].Visible then d.L[i].Color=bc end
+            end
+        end
+        if d.T.Visible then d.T.Color=bc end
+        if d.H then d.H.FillColor=bc end
+        if d.NL and (S.ESPNameTag or S.ESPHealthText or S.ESPThreatLevel) and h then
+            local tx=nm
+            if S.ESPHealthText then tx=tx.." ["..F(h.Health).."/"..F(h.MaxHealth).."]" end
+            if S.ESPThreatLevel then
+                local hp=h.Health/h.MaxHealth
+                local st=hp>.7 and "★" or (hp>.3 and "★★" or "★★★")
+                tx=tx.." "..st
+            end
+            d.NL.Text=tx
+        end
+    end
+end
+
+R.RenderStepped:Connect(function()
+    local nw=tick()
+    FS=FS+1
+    local uD=(FS%6==0)
+    UFO()
+    local wm=S.ESPWallCheck
+    for nm,d in D do
+        if d.C and d.C.Parent then
+            local vs=true
+            if wm~="None" then
+                local ck=d.C:FindFirstChild("Head") or d.R
+                if ck then vs=IV(ck,P:FindFirstChild(nm)) end
+            end
+            local ss=true
+            if wm=="Visible Only" then ss=vs
+            elseif wm=="Hidden Only" then ss=not vs end
+            local lc=(S.ESPTeamColor and d.Team) and TG or AC
+            if wm=="Color Code" then lc=vs and K(80,220,140) or K(255,90,110) end
+            if S.Skel and ss then
+                local sc=d.SC
+                if table.clear then table.clear(sc)
+                else for k in sc do sc[k]=nil end end
+                local bp=d.BP
+                for i=1,#bp do
+                    local pr=bp[i]
+                    local p0,p1=pr[1],pr[2]
+                    if p0 and not sc[p0] then
+                        local v,o=WV(C,p0.Position)
+                        sc[p0]=(o and v.Z>0) and V2(v.X,v.Y) or false
+                    end
+                    if p1 and not sc[p1] then
+                        local v,o=WV(C,p1.Position)
+                        sc[p1]=(o and v.Z>0) and V2(v.X,v.Y) or false
+                    end
+                end
+                for i=1,#bp do
+                    local pr=bp[i]
+                    local p0,p1,ln=pr[1],pr[2],d.L[i]
+                    local s0=p0 and sc[p0]
+                    local s1=p1 and sc[p1]
+                    if s0 and s1 then
+                        ln.From=s0
+                        ln.To=s1
+                        ln.Visible=true
+                        if wm=="Color Code" then ln.Color=lc end
+                    elseif ln.Visible then ln.Visible=false end
+                end
+            else
+                for i=1,#d.L do
+                    if d.L[i].Visible then d.L[i].Visible=false end
+                end
+            end
+            if d.Box then
+                if S.ESPBox and ss then
+                    local hd=d.C:FindFirstChild("Head")
+                    local ft=d.R.Position-V3(0,3,0)
+                    if hd then
+                        local tv,to=WV(C,hd.Position+V3(0,.6,0))
+                        local bv,bo=WV(C,ft)
+                        if to and bo and tv.Z>0 and bv.Z>0 then
+                            local hh=bv.Y-tv.Y
+                            local ww=hh*.55
+                            d.Box.Size=V2(ww,hh)
+                            d.Box.Position=V2(tv.X-ww/2,tv.Y)
+                            d.Box.Color=lc
+                            d.Box.Visible=true
+                        else d.Box.Visible=false end
+                    end
+                else d.Box.Visible=false end
+            end
+            if S.Trace and ss then
+                local sp,on=WV(C,d.R.Position)
+                if on and sp.Z>0 then
+                    d.T.From=V2(VP.X,C.ViewportSize.Y)
+                    d.T.To=V2(sp.X,sp.Y)
+                    d.T.Visible=true
+                    if wm=="Color Code" then d.T.Color=lc end
+                elseif d.T.Visible then d.T.Visible=false end
+            elseif d.T.Visible then d.T.Visible=false end
+            if d.H.Enabled~=S.Chams then d.H.Enabled=S.Chams end
+            if uD then
+                local m=F((d.R.Position-C.CFrame.Position).Magnitude)
+                if m~=d.lD then
+                    d.lD=m
+                    d.DL.Text=m.."m"
+                end
+            end
+        else
+            CP(nm)
+        end
+    end
+    if S.Aim or S.Trig or S.Silent then
+        local tg=GT()
+        TT=tg
+        if tg then
+            local tp=PP(tg)
+            if S.Aim then
+                C.CFrame=SCF(C.CFrame,CF(C.CFrame.Position,tp),S.Smooth)
+            end
+            if S.Silent and S.SilentMode=="Mouse" then LC() end
+            if S.Trig and nw-LS>S.TrigD then
+                LS=nw
+                TS(tg)
+            end
+        end
+    end
+    if S.AutoShoot and not IL() and TT then
+        if nw-LA>S.AutoShootDelay then
+            LA=nw
+            if S.Silent and S.SilentMode=="Hook" then
+                SIT=TT
+                FT()
+                task.delay(.08,function() SIT=nil end)
+            else
+                FT()
+            end
+        end
+    end
+    if S.Fly and FV then
+        local dr=V3(0,0,0)
+        if FM=="up" then dr=C.CFrame.LookVector
+        elseif FM=="down" then dr=-C.CFrame.LookVector end
+        if dr.Magnitude>0 then FV.Velocity=dr*S.FlyV
+        else FV.Velocity=V3(0,0,0) end
+    end
+end)
+
+L.CharacterAdded:Connect(function()
+    task.wait(1)
+    AS()
+    AJ()
+    if S.Fly then
+        TF(true)
+        if FlyCtrl then FlyCtrl.Visible=true end
+    end
+    if S.Noclip then TNC(true) end
+    if S.InfJ then TIJ(true) end
+end)
+local W_=Color3.new(1,1,1)
+local PU=K(140,60,255)
+local BGD=K(15,12,20)
+local BGM=K(25,20,35)
+local BGB=K(38,32,50)
+local TD=K(170,160,190)
+
+local GG=N("ScreenGui")
+GG.Name="G"..RD()
+GG.ResetOnSpawn=false
+GG.IgnoreGuiInset=true
+GG.DisplayOrder=999
+GG.Parent=G
+
+local HG=N("ScreenGui")
+HG.Name="KHUD"..RD()
+HG.ResetOnSpawn=false
+HG.IgnoreGuiInset=true
+HG.DisplayOrder=1000
+HG.Parent=G
+
+local PH=N("Frame",HG)
+PH.Size=UD(0,200,0,70)
+PH.Position=UD(0,10,0,10)
+PH.BackgroundColor3=K(12,10,18)
+PH.BackgroundTransparency=.25
+PH.BorderSizePixel=0
+PH.Visible=false
+N("UICorner",PH).CornerRadius=UD(0,10)
+
+local PN=N("TextLabel",PH)
+PN.Size=UD(1,-12,0,18)
+PN.Position=UD(0,6,0,4)
+PN.BackgroundTransparency=1
+PN.TextColor3=K(220,180,255)
+PN.Font=Enum.Font.GothamBold
+PN.TextSize=12
+PN.TextXAlignment=Enum.TextXAlignment.Left
+
+local PHH=N("TextLabel",PH)
+PHH.Size=UD(1,-12,0,16)
+PHH.Position=UD(0,6,0,24)
+PHH.BackgroundTransparency=1
+PHH.TextColor3=K(255,120,140)
+PHH.Font=Enum.Font.GothamMedium
+PHH.TextSize=11
+PHH.TextXAlignment=Enum.TextXAlignment.Left
+
+local PDD=N("TextLabel",PH)
+PDD.Size=UD(1,-12,0,16)
+PDD.Position=UD(0,6,0,42)
+PDD.BackgroundTransparency=1
+PDD.TextColor3=K(160,200,255)
+PDD.Font=Enum.Font.GothamMedium
+PDD.TextSize=11
+PDD.TextXAlignment=Enum.TextXAlignment.Left
+
+local TI=N("Frame",HG)
+TI.Size=UD(0,40,0,40)
+TI.BackgroundTransparency=1
+TI.Visible=false
+local TIR=N("Frame",TI)
+TIR.Size=UD(1,0,1,0)
+TIR.BackgroundTransparency=1
+local TIS=N("UIStroke",TIR)
+TIS.Color=K(255,80,100)
+TIS.Thickness=3
+TIS.Transparency=.2
+N("UICorner",TIR).CornerRadius=UD(1,0)
+
+local HF=N("Frame",HG)
+HF.Size=UD(1,0,1,0)
+HF.BackgroundColor3=K(255,80,100)
+HF.BackgroundTransparency=1
+HF.BorderSizePixel=0
+HF.ZIndex=999
+HF.Visible=false
+
+local HS=N("Sound",HG)
+HS.SoundId="rbxassetid://6042053626"
+HS.Volume=1.5
+
+local function OH()
+    if not S.HitNotify then return end
+    HF.Visible=true
+    HF.BackgroundTransparency=.7
+    T:Create(HF,TweenInfo.new(.25),{BackgroundTransparency=1}):Play()
+    task.delay(.3,function() HF.Visible=false end)
+    pcall(function() HS:Play() end)
+end
+
+local FC=nil
+local function TAF(on)
+    S.AntiFling=on
+    if FC then FC:Disconnect() FC=nil end
+    if not on then return end
+    FC=R.Heartbeat:Connect(function()
+        local c=L.Character
+        if not c then return end
+        local r=c:FindFirstChild("HumanoidRootPart")
+        if not r then return end
+        local vel=r.AssemblyLinearVelocity
+        local hz=V3(vel.X,0,vel.Z).Magnitude
+        if hz>200 then
+            pcall(function() r.AssemblyLinearVelocity=V3(0,vel.Y,0) end)
+        end
+        if r.AssemblyAngularVelocity.Magnitude>50 then
+            pcall(function() r.AssemblyAngularVelocity=V3(0,0,0) end)
+        end
+    end)
+end
+
+local TLR=nil
+local function UTT()
+    if not TLR then
+        TLR=Drawing.new("Line")
+        TLR.Thickness=1.5
+        TLR.Color=K(255,80,120)
+        TLR.Transparency=.7
+        TLR.Visible=false
+    end
+    if not S.TracerToTarget or not TT then
+        if TLR.Visible then TLR.Visible=false end
+        return
+    end
+    local sp,on=WV(C,TT.Position)
+    if on and sp.Z>0 then
+        TLR.From=V2(VP.X,VP.Y)
+        TLR.To=V2(sp.X,sp.Y)
+        TLR.Visible=true
+    else
+        TLR.Visible=false
+    end
+end
+
+local function UPH()
+    if not S.PlayerHUD then
+        if PH.Visible then PH.Visible=false end
+        return
+    end
+    local c=L.Character
+    local h=c and c:FindFirstChildOfClass("Humanoid")
+    if not h then
+        PH.Visible=false
+        return
+    end
+    PH.Visible=true
+    PN.Text=L.Name.." | "..L.DisplayName
+    PHH.Text="HP: "..F(h.Health).." / "..F(h.MaxHealth)
+    if S.NearestPlayerHUD then
+        local nr,nd=nil,math.huge
+        local mp=c:FindFirstChild("HumanoidRootPart")
+        if mp then
+            for _,p in GP(P) do
+                if p==L then continue end
+                local ch=p.Character
+                if not ch then continue end
+                local hrp=ch:FindFirstChild("HumanoidRootPart")
+                if not hrp then continue end
+                local d=(hrp.Position-mp.Position).Magnitude
+                if d<nd then nd=d nr=p end
+            end
+        end
+        if nr then
+            PDD.Text="Nearest: "..nr.Name.." ("..F(nd).."m)"
+        else
+            PDD.Text="Nearest: ---"
+        end
+    else
+        PDD.Text=""
+    end
+end
+
+local function UTI()
+    if not S.TargetIndicator or not TT then
+        if TI.Visible then TI.Visible=false end
+        return
+    end
+    local sp,on=WV(C,TT.Position)
+    if on and sp.Z>0 then
+        TI.Position=UD(0,sp.X-20,0,sp.Y-20)
+        TI.Visible=true
+        TI.Rotation=(TI.Rotation+3)%360
+    else
+        TI.Visible=false
+    end
+end
+
+local KFT=0
+local function ANKF()
+    if not S.NoKillFlash then return end
+    local nw=tick()
+    if nw-KFT<.15 then return end
+    KFT=nw
+    local pg=L:FindFirstChild("PlayerGui")
+    if not pg then return end
+    for _,o in pg:GetChildren() do
+        if o:IsA("ImageLabel") or o:IsA("Frame") then
+            local n=o.Name:lower()
+            if n:find("flash") or n:find("blood") or n:find("hit") then
+                if o.Visible then o.Visible=false end
+            end
+        end
+    end
+end
+
+local HC={}
+local function SHD()
+    for _,c in HC do pcall(function() c:Disconnect() end) end
+    HC={}
+    for _,p in GP(P) do
+        if p==L then continue end
+        local ch=p.Character
+        if not ch then continue end
+        local h=ch:FindFirstChildOfClass("Humanoid")
+        if not h then continue end
+        local lt=h.Health
+        table.insert(HC,h.HealthChanged:Connect(function(nh)
+            if nh<lt then
+                local tl=L.Character and L.Character:FindFirstChildOfClass("Tool")
+                if tl then OH() end
+            end
+            lt=nh
+        end))
+    end
+end
+
+local RCn=0
+local function SR()
+    if S.RenderThrottle<=1 then return true end
+    RCn=RCn+1
+    if RCn>=S.RenderThrottle then
+        RCn=0
+        return true
+    end
+    return false
+end
+
+R.RenderStepped:Connect(function()
+    if not SR() then return end
+    UE()
+    UPH()
+    UTI()
+    UTT()
+    if S.NoKillFlash then ANKF() end
+end)
+
+local FB=N("TextButton",GG)
+FB.Size=UD(0,68,0,68)
+FB.Position=UD(1,-82,.5,-34)
+FB.BackgroundColor3=K(35,25,55)
+FB.Text="MENU"
+FB.TextColor3=W_
+FB.Font=Enum.Font.GothamBold
+FB.TextSize=12
+FB.AutoButtonColor=false
+FB.Active=true
+N("UICorner",FB).CornerRadius=UD(1,0)
+
+local FG_=N("UIGradient",FB)
+FG_.Color=ColorSequence.new({ColorSequenceKeypoint.new(0,K(160,80,255)),ColorSequenceKeypoint.new(1,K(210,70,190))})
+FG_.Rotation=45
+
+local FS_=N("UIStroke",FB)
+FS_.Color=K(230,200,255)
+FS_.Thickness=2
+FS_.Transparency=.2
+
+FlyCtrl=N("TextButton",GG)
+FlyCtrl.Size=UD(0,76,0,76)
+FlyCtrl.Position=UD(0,14,1,-176)
+FlyCtrl.BackgroundColor3=BGM
+FlyCtrl.Text="飛行\n長押し"
+FlyCtrl.TextColor3=W_
+FlyCtrl.Font=Enum.Font.GothamBold
+FlyCtrl.TextSize=13
+FlyCtrl.AutoButtonColor=false
+FlyCtrl.Visible=false
+N("UICorner",FlyCtrl).CornerRadius=UD(0,14)
+
+local FS2=N("UIStroke",FlyCtrl)
+FS2.Color=PU
+FS2.Thickness=2
+FS2.Transparency=.25
+
+FlyCtrl.InputBegan:Connect(function(i)
+    if i.UserInputType==Enum.UserInputType.Touch or i.UserInputType==Enum.UserInputType.MouseButton1 then
+        FM="up"
+        T:Create(FlyCtrl,TweenInfo.new(.08),{BackgroundColor3=PU}):Play()
+    end
+end)
+
+FlyCtrl.InputEnded:Connect(function(i)
+    if i.UserInputType==Enum.UserInputType.Touch or i.UserInputType==Enum.UserInputType.MouseButton1 then
+        FM=nil
+        T:Create(FlyCtrl,TweenInfo.new(.08),{BackgroundColor3=BGM}):Play()
+    end
+end)
+local MP=N("Frame",GG)
+MP.Size=UD(0,700,0,440)
+MP.Position=UD(.5,-350,.5,-220)
+MP.BackgroundColor3=BGD
+MP.Visible=false
+MP.Active=true
+N("UICorner",MP).CornerRadius=UD(0,16)
+
+if getgenv and getgenv().KataoyaPanelPos and getgenv().KataoyaPanelPos.panel then
+    MP.Position=getgenv().KataoyaPanelPos.panel
+end
+
+local PG_=N("UIGradient",MP)
+PG_.Color=ColorSequence.new({ColorSequenceKeypoint.new(0,K(22,16,32)),ColorSequenceKeypoint.new(1,K(13,10,20))})
+PG_.Rotation=90
+
+local PS_=N("UIStroke",MP)
+PS_.Color=PU
+PS_.Thickness=1.5
+PS_.Transparency=.35
+
+local TB=N("Frame",MP)
+TB.Size=UD(1,0,0,48)
+TB.BackgroundColor3=BGM
+TB.Active=true
+N("UICorner",TB).CornerRadius=UD(0,16)
+
+local TG_=N("UIGradient",TB)
+TG_.Color=ColorSequence.new({ColorSequenceKeypoint.new(0,K(48,28,75)),ColorSequenceKeypoint.new(1,K(30,20,48))})
+
+local AC_=N("Frame",TB)
+AC_.Size=UD(0,4,0,24)
+AC_.Position=UD(0,14,.5,-12)
+AC_.BackgroundColor3=PU
+AC_.BorderSizePixel=0
+N("UICorner",AC_).CornerRadius=UD(1,0)
+
+local TT_=N("TextLabel",TB)
+TT_.Size=UD(1,-160,1,0)
+TT_.Position=UD(0,28,0,0)
+TT_.BackgroundTransparency=1
+TT_.Text="Kataoya v7.0 | 日本語版"
+TT_.TextColor3=K(215,180,255)
+TT_.Font=Enum.Font.GothamBold
+TT_.TextSize=15
+TT_.TextXAlignment=Enum.TextXAlignment.Left
+
+local CB=N("TextButton",TB)
+CB.Size=UD(0,36,0,36)
+CB.Position=UD(1,-50,.5,-18)
+CB.BackgroundColor3=K(60,22,38)
+CB.Text="X"
+CB.TextColor3=K(255,110,130)
+CB.Font=Enum.Font.GothamBold
+CB.TextSize=15
+CB.AutoButtonColor=false
+N("UICorner",CB).CornerRadius=UD(0,9)
+
+local TabB=N("Frame",MP)
+TabB.Size=UD(1,-24,0,40)
+TabB.Position=UD(0,12,0,54)
+TabB.BackgroundColor3=K(18,14,26)
+TabB.BorderSizePixel=0
+N("UICorner",TabB).CornerRadius=UD(0,10)
+
+local TBL=N("UIListLayout",TabB)
+TBL.FillDirection=Enum.FillDirection.Horizontal
+TBL.Padding=UD(0,5)
+TBL.HorizontalAlignment=Enum.HorizontalAlignment.Center
+TBL.VerticalAlignment=Enum.VerticalAlignment.Center
+
+local CA=N("Frame",MP)
+CA.Size=UD(1,-24,1,-116)
+CA.Position=UD(0,12,0,104)
+CA.BackgroundTransparency=1
+
+local CS=N("ScrollingFrame",CA)
+CS.Size=UD(1,0,1,0)
+CS.BackgroundTransparency=1
+CS.BorderSizePixel=0
+CS.ScrollBarThickness=4
+CS.ScrollBarImageColor3=PU
+CS.ScrollingDirection=Enum.ScrollingDirection.Y
+CS.CanvasSize=UD(0,0,0,0)
+CS.AutomaticCanvasSize=Enum.AutomaticSize.Y
+
+local DR,DS,SPos=false,nil,nil
+TB.InputBegan:Connect(function(i)
+    if i.UserInputType==Enum.UserInputType.Touch or i.UserInputType==Enum.UserInputType.MouseButton1 then
+        DR,DS,SPos=true,i.Position,MP.Position
+    end
+end)
+
+local FD_,FM_=false,false
+local FST,FO
+FB.InputBegan:Connect(function(i)
+    if i.UserInputType==Enum.UserInputType.Touch or i.UserInputType==Enum.UserInputType.MouseButton1 then
+        FD_,FM_=true,false
+        FST,FO=i.Position,FB.Position
+    end
+end)
+
+U.InputChanged:Connect(function(i)
+    local t=i.UserInputType
+    if t~=Enum.UserInputType.Touch and t~=Enum.UserInputType.MouseMovement then return end
+    if DR then
+        local d=i.Position-DS
+        MP.Position=UD(SPos.X.Scale,SPos.X.Offset+d.X,SPos.Y.Scale,SPos.Y.Offset+d.Y)
+    end
+    if FD_ then
+        local d=i.Position-FST
+        if A(d.X)>8 or A(d.Y)>8 then FM_=true end
+        FB.Position=UD(FO.X.Scale,FO.X.Offset+d.X,FO.Y.Scale,FO.Y.Offset+d.Y)
+    end
+end)
+
+U.InputEnded:Connect(function(i)
+    local t=i.UserInputType
+    if t~=Enum.UserInputType.Touch and t~=Enum.UserInputType.MouseButton1 then return end
+    if DR then
+        DR=false
+        if getgenv then
+            getgenv().KataoyaPanelPos=getgenv().KataoyaPanelPos or {}
+            getgenv().KataoyaPanelPos.panel=MP.Position
+        end
+    end
+    if FD_ then
+        if not FM_ then MP.Visible=not MP.Visible end
+        FD_=false
+    end
+end)
+
+CB.MouseButton1Click:Connect(function() MP.Visible=false end)
+
+local function CSe(t,i)
+    local cd=N("Frame",CS)
+    cd.Size=UD(1,-8,0,60)
+    cd.BackgroundColor3=BGM
+    cd.BorderSizePixel=0
+    cd.AutomaticSize=Enum.AutomaticSize.Y
+    N("UICorner",cd).CornerRadius=UD(0,12)
+    local hd=N("Frame",cd)
+    hd.Size=UD(1,0,0,38)
+    hd.BackgroundColor3=K(34,26,48)
+    hd.BorderSizePixel=0
+    N("UICorner",hd).CornerRadius=UD(0,12)
+    local ib=N("Frame",hd)
+    ib.Size=UD(0,22,0,22)
+    ib.Position=UD(0,12,.5,-11)
+    ib.BackgroundColor3=PU
+    ib.BorderSizePixel=0
+    N("UICorner",ib).CornerRadius=UD(0,6)
+    local ic=N("TextLabel",ib)
+    ic.Size=UD(1,0,1,0)
+    ic.BackgroundTransparency=1
+    ic.Text=i or "◆"
+    ic.TextColor3=W_
+    ic.Font=Enum.Font.GothamBold
+    ic.TextSize=12
+    local lb=N("TextLabel",hd)
+    lb.Size=UD(1,-50,1,0)
+    lb.Position=UD(0,40,0,0)
+    lb.BackgroundTransparency=1
+    lb.Text=t
+    lb.TextColor3=K(220,185,255)
+    lb.Font=Enum.Font.GothamBold
+    lb.TextSize=13
+    lb.TextXAlignment=Enum.TextXAlignment.Left
+    local bd=N("Frame",cd)
+    bd.Size=UD(1,-16,0,0)
+    bd.Position=UD(0,8,0,46)
+    bd.BackgroundTransparency=1
+    bd.AutomaticSize=Enum.AutomaticSize.Y
+    local gr=N("UIGridLayout",bd)
+    gr.CellSize=UD(.5,-5,0,38)
+    gr.CellPadding=UD(0,10,0,8)
+    gr.SortOrder=Enum.SortOrder.LayoutOrder
+    gr.FillDirectionMaxCells=2
+    local ls=N("UIListLayout",cd)
+    ls.SortOrder=Enum.SortOrder.LayoutOrder
+    return cd,bd
+end
+
+local function CT(parent,t,dflt,cb)
+    local btn=N("TextButton",parent)
+    btn.Size=UD(0,200,0,38)
+    btn.BackgroundColor3=dflt and K(115,55,195) or BGB
+    btn.Text=""
+    btn.AutoButtonColor=false
+    btn.Active=true
+    N("UICorner",btn).CornerRadius=UD(0,9)
+    local st=N("UIStroke",btn)
+    st.Color=dflt and K(190,115,255) or K(70,58,92)
+    st.Thickness=1
+    st.Transparency=.3
+    local dt=N("Frame",btn)
+    dt.Size=UD(0,8,0,8)
+    dt.Position=UD(0,12,.5,-4)
+    dt.BackgroundColor3=dflt and K(120,255,170) or K(90,80,115)
+    dt.BorderSizePixel=0
+    N("UICorner",dt).CornerRadius=UD(1,0)
+    local lb=N("TextLabel",btn)
+    lb.Size=UD(1,-70,1,0)
+    lb.Position=UD(0,28,0,0)
+    lb.BackgroundTransparency=1
+    lb.Text=t
+    lb.TextColor3=W_
+    lb.Font=Enum.Font.GothamMedium
+    lb.TextSize=12
+    lb.TextXAlignment=Enum.TextXAlignment.Left
+    local bg=N("Frame",btn)
+    bg.Size=UD(0,42,0,22)
+    bg.Position=UD(1,-50,.5,-11)
+    bg.BackgroundColor3=dflt and K(180,255,200) or K(55,48,70)
+    bg.BorderSizePixel=0
+    N("UICorner",bg).CornerRadius=UD(1,0)
+    local bt=N("TextLabel",bg)
+    bt.Size=UD(1,0,1,0)
+    bt.BackgroundTransparency=1
+    bt.Text=dflt and "オン" or "オフ"
+    bt.TextColor3=dflt and K(20,80,40) or TD
+    bt.Font=Enum.Font.GothamBold
+    bt.TextSize=10
+    local se=dflt
+    local function u(ns,sl)
+        se=ns
+        local on=se
+        T:Create(btn,TweenInfo.new(.15),{BackgroundColor3=on and K(115,55,195) or BGB}):Play()
+        T:Create(st,TweenInfo.new(.15),{Color=on and K(190,115,255) or K(70,58,92)}):Play()
+        T:Create(dt,TweenInfo.new(.15),{BackgroundColor3=on and K(120,255,170) or K(90,80,115)}):Play()
+        T:Create(bg,TweenInfo.new(.15),{BackgroundColor3=on and K(180,255,200) or K(55,48,70)}):Play()
+        bt.Text=on and "オン" or "オフ"
+        bt.TextColor3=on and K(20,80,40) or TD
+        if not sl then cb(se) end
+    end
+    btn.MouseButton1Click:Connect(function() u(not se) end)
+    return btn,u
+end
+
+local function CSl(parent,t,mn,mx,df,dc,cb,rv)
+    local d=dc or 0
+    local rvv=rv or df
+    local fr=N("Frame",parent)
+    fr.Size=UD(0,200,0,38)
+    fr.BackgroundColor3=K(22,18,32)
+    fr.BorderSizePixel=0
+    N("UICorner",fr).CornerRadius=UD(0,9)
+    local lb=N("TextLabel",fr)
+    lb.Size=UD(1,-72,0,14)
+    lb.Position=UD(0,10,0,3)
+    lb.BackgroundTransparency=1
+    lb.Text=t
+    lb.TextColor3=K(210,200,230)
+    lb.Font=Enum.Font.GothamMedium
+    lb.TextSize=11
+    lb.TextXAlignment=Enum.TextXAlignment.Left
+    local vb=N("Frame",fr)
+    vb.Size=UD(0,56,0,16)
+    vb.Position=UD(1,-64,0,3)
+    vb.BackgroundColor3=K(50,35,80)
+    vb.BorderSizePixel=0
+    N("UICorner",vb).CornerRadius=UD(0,5)
+    local vt=N("TextLabel",vb)
+    vt.Size=UD(1,0,1,0)
+    vt.BackgroundTransparency=1
+    vt.Text=string.format("%."..d.."f",df)
+    vt.TextColor3=K(220,180,255)
+    vt.Font=Enum.Font.GothamBold
+    vt.TextSize=10
+    local br=N("Frame",fr)
+    br.Size=UD(1,-20,0,8)
+    br.Position=UD(0,10,0,24)
+    br.BackgroundColor3=K(35,30,45)
+    br.BorderSizePixel=0
+    N("UICorner",br).CornerRadius=UD(1,0)
+    local fl_=N("Frame",br)
+    fl_.Size=UD((df-mn)/(mx-mn),0,1,0)
+    fl_.BackgroundColor3=PU
+    fl_.BorderSizePixel=0
+    N("UICorner",fl_).CornerRadius=UD(1,0)
+    local hd=N("Frame",br)
+    hd.Size=UD(0,18,0,18)
+    hd.AnchorPoint=V2(.5,.5)
+    hd.Position=UD((df-mn)/(mx-mn),0,.5,0)
+    hd.BackgroundColor3=W_
+    hd.BorderSizePixel=0
+    N("UICorner",hd).CornerRadius=UD(1,0)
+    local ct=N("TextButton",fr)
+    ct.Size=UD(1,0,1,0)
+    ct.BackgroundTransparency=1
+    ct.Text=""
+    local sl=false
+    local lt=0
+    local function u(inp)
+        local po=CL((inp.Position.X-br.AbsolutePosition.X)/br.AbsoluteSize.X,0,1)
+        local v=mn+(mx-mn)*po
+        if d==0 then v=F(v+.5)
+        else v=F(v*10^d+.5)/10^d end
+        local pc=(v-mn)/(mx-mn)
+        fl_.Size=UD(pc,0,1,0)
+        hd.Position=UD(pc,0,.5,0)
+        vt.Text=string.format("%."..d.."f",v)
+        cb(v)
+    end
+    ct.InputBegan:Connect(function(i)
+        if i.UserInputType==Enum.UserInputType.Touch or i.UserInputType==Enum.UserInputType.MouseButton1 then
+            local nw=tick()
+            if nw-lt<.3 then
+                local po=(rvv-mn)/(mx-mn)
+                fl_.Size=UD(po,0,1,0)
+                hd.Position=UD(po,0,.5,0)
+                vt.Text=string.format("%."..d.."f",rvv)
+                cb(rvv)
+                lt=0
+                return
+            end
+            lt=nw
+            sl=true
+            u(i)
+        end
+    end)
+    ct.InputEnded:Connect(function(i)
+        if i.UserInputType==Enum.UserInputType.Touch or i.UserInputType==Enum.UserInputType.MouseButton1 then
+            sl=false
+        end
+    end)
+    U.InputChanged:Connect(function(i)
+        if sl and (i.UserInputType==Enum.UserInputType.Touch or i.UserInputType==Enum.UserInputType.MouseMovement) then
+            u(i)
+        end
+    end)
+    return fr
+end
+
+local function CD(parent,t,op,df,cb)
+    local fr=N("Frame",parent)
+    fr.Size=UD(0,200,0,38)
+    fr.BackgroundColor3=BGB
+    fr.BorderSizePixel=0
+    N("UICorner",fr).CornerRadius=UD(0,9)
+    local lb=N("TextLabel",fr)
+    lb.Size=UD(1,-40,0,14)
+    lb.Position=UD(0,12,0,3)
+    lb.BackgroundTransparency=1
+    lb.Text=t
+    lb.TextColor3=TD
+    lb.Font=Enum.Font.Gotham
+    lb.TextSize=9
+    lb.TextXAlignment=Enum.TextXAlignment.Left
+    local vl=N("TextLabel",fr)
+    vl.Size=UD(1,-40,0,16)
+    vl.Position=UD(0,12,0,16)
+    vl.BackgroundTransparency=1
+    vl.Text=df
+    vl.TextColor3=W_
+    vl.Font=Enum.Font.GothamBold
+    vl.TextSize=12
+    vl.TextXAlignment=Enum.TextXAlignment.Left
+    local ar=N("TextLabel",fr)
+    ar.Size=UD(0,24,1,0)
+    ar.Position=UD(1,-28,0,0)
+    ar.BackgroundTransparency=1
+    ar.Text="v"
+    ar.TextColor3=K(180,140,255)
+    ar.Font=Enum.Font.GothamBold
+    ar.TextSize=14
+    local btn=N("TextButton",fr)
+    btn.Size=UD(1,0,1,0)
+    btn.BackgroundTransparency=1
+    btn.Text=""
+    local lst=N("Frame",fr)
+    lst.Size=UD(1,0,0,#op*30+8)
+    lst.Position=UD(0,0,0,-#op*30-14)
+    lst.BackgroundColor3=K(28,22,40)
+    lst.BorderSizePixel=0
+    lst.Visible=false
+    lst.ZIndex=50
+    N("UICorner",lst).CornerRadius=UD(0,9)
+    local ll=N("UIListLayout",lst)
+    ll.Padding=UD(0,2)
+    ll.HorizontalAlignment=Enum.HorizontalAlignment.Center
+    local lp=N("UIPadding",lst)
+    lp.PaddingTop=UD(0,4)
+    lp.PaddingBottom=UD(0,4)
+    local ibs={}
+    local function ss(o)
+        vl.Text=o
+        for _,ob in ibs do
+            if ob.Text==o then
+                ob.BackgroundColor3=K(90,50,150)
+                ob.TextColor3=K(220,180,255)
+            else
+                ob.BackgroundColor3=K(40,32,55)
+                ob.TextColor3=K(200,190,220)
+            end
+        end
+        cb(o)
+    end
+    for i=1,#op do
+        local o=op[i]
+        local ob=N("TextButton",lst)
+        ob.Size=UD(1,-8,0,28)
+        ob.BackgroundColor3=o==df and K(90,50,150) or K(40,32,55)
+        ob.Text=o
+        ob.TextColor3=o==df and K(220,180,255) or K(200,190,220)
+        ob.Font=Enum.Font.GothamMedium
+        ob.TextSize=11
+        ob.AutoButtonColor=false
+        ob.ZIndex=51
+        N("UICorner",ob).CornerRadius=UD(0,6)
+        table.insert(ibs,ob)
+        ob.MouseButton1Click:Connect(function()
+            ss(o)
+            lst.Visible=false
+        end)
+    end
+    btn.MouseButton1Click:Connect(function() lst.Visible=not lst.Visible end)
+    return fr
+end
+
+local TBtns,TBp={},{}
+local AT=nil
+local function STi(idx)
+    if AT==idx then return end
+    AT=idx
+    for i,b in TBtns do
+        local isA=(i==idx)
+        T:Create(b,TweenInfo.new(.15),{BackgroundColor3=isA and K(115,55,195) or K(35,30,45)}):Play()
+        b.TextColor3=isA and W_ or K(160,150,180)
+    end
+    for i,p in TBp do p.Visible=(i==idx) end
+end
+
+local function CTb(name,icon,sects)
+    local btn=N("TextButton",TabB)
+    btn.Size=UD(0,116,0,30)
+    btn.BackgroundColor3=K(35,30,45)
+    btn.Text=(icon or "").." "..name
+    btn.TextColor3=K(160,150,180)
+    btn.Font=Enum.Font.GothamBold
+    btn.TextSize=11
+    btn.AutoButtonColor=false
+    N("UICorner",btn).CornerRadius=UD(0,8)
+    local idx=#TBtns+1
+    TBtns[idx]=btn
+    local pnl=N("ScrollingFrame",CS)
+    pnl.Size=UD(1,0,1,0)
+    pnl.BackgroundTransparency=1
+    pnl.BorderSizePixel=0
+    pnl.ScrollBarThickness=0
+    pnl.ScrollingDirection=Enum.ScrollingDirection.Y
+    pnl.CanvasSize=UD(0,0,0,0)
+    pnl.AutomaticCanvasSize=Enum.AutomaticSize.Y
+    pnl.Visible=false
+    local vl=N("UIListLayout",pnl)
+    vl.Padding=UD(0,10)
+    vl.HorizontalAlignment=Enum.HorizontalAlignment.Center
+    TBp[idx]=pnl
+    btn.MouseButton1Click:Connect(function() STi(idx) end)
+    for _,sd in sects do
+        local cd,bd=CSe(sd.title,sd.icon)
+        cd.Parent=pnl
+        sd.build(bd)
+    end
+    return idx
+end
+
+CTb("エイム","A",{
+    {title="エイム設定",icon="1",build=function(bd)
+        CT(bd,"エイム",false,function(v) S.Aim=v end)
+        CT(bd,"可視チェック",true,function(v) S.VisCheck=v end)
+        CT(bd,"FOVサークル",false,function(v) S.FOVCircle=v end)
+        CSl(bd,"滑らかさ",.05,.4,.18,2,function(v) S.Smooth=v end,.18)
+        CSl(bd,"視野角",40,400,90,0,function(v) S.FOV=v end,90)
+        CSl(bd,"最大距離",50,1500,500,0,function(v) S.MaxDist=v end,500)
+    end},
+    {title="サイレント",icon="2",build=function(bd)
+        CT(bd,"サイレント",false,function(v) S.Silent=v end)
+        CT(bd,"Auto Shoot",false,function(v) S.AutoShoot=v end)
+        CT(bd,"即座スナップ",false,function(v) S.InstantSnap=v end)
+        CD(bd,"方式",{"Hook","Mouse"},"Hook",function(v) S.SilentMode=v end)
+        CD(bd,"平滑化",{"Linear","Exponential","Bezier"},"Linear",function(v) S.AimSmoothing=v end)
+        CD(bd,"予測方式",{"Velocity","Acceleration","Gravity"},"Velocity",function(v) S.PredictionType=v end)
+        CSl(bd,"追従速度",.05,1,.35,2,function(v) S.SilentSmooth=v end,.35)
+        CSl(bd,"発射遅延",.02,.5,.08,2,function(v) S.AutoShootDelay=v end,.08)
+    end},
+    {title="トリガー",icon="3",build=function(bd)
+        CT(bd,"トリガーボット",false,function(v) S.Trig=v end)
+        CT(bd,"AI予測",true,function(v) S.AI=v end)
+        CSl(bd,"遅延",.05,.5,.12,2,function(v) S.TrigD=v end,.12)
+        CSl(bd,"予測",.05,.3,.12,2,function(v) S.Pred=v end,.12)
+    end},
+    {title="優先度",icon="4",build=function(bd)
+        CD(bd,"ターゲット優先",{"Distance","Health","Threat"},"Distance",function(v) S.AimPriority=v end)
+        CT(bd,"壁貫通",false,function(v) S.AimWallBang=v end)
+    end}
+})
+
+CTb("ESP","B",{
+    {title="表示",icon="1",build=function(bd)
+        CT(bd,"骨格",true,function(v) S.Skel=v end)
+        CT(bd,"Box",false,function(v) S.ESPBox=v RFE() end)
+        CT(bd,"軌跡",false,function(v) S.Trace=v end)
+        CT(bd,"透過表示",true,function(v) S.Chams=v end)
+        CT(bd,"情報",true,function(v) S.Info=v end)
+        CT(bd,"距離のみ",false,function(v) S.ESPDist=v end)
+    end},
+    {title="強化表示",icon="2",build=function(bd)
+        CT(bd,"ヘルスバー",false,function(v) S.ESPHealthBar=v end)
+        CT(bd,"チームカラー",true,function(v) S.ESPTeamColor=v end)
+        CT(bd,"レインボー",false,function(v) S.ESPRainbow=v end)
+        CT(bd,"距離フェード",true,function(v) S.ESPDistanceFade=v end)
+        CT(bd,"ネームタグ強化",false,function(v) S.ESPNameTag=v end)
+        CT(bd,"HP数値表示",false,function(v) S.ESPHealthText=v end)
+        CT(bd,"脅威度表示",false,function(v) S.ESPThreatLevel=v end)
+    end},
+    {title="壁裏判定",icon="3",build=function(bd)
+        CD(bd,"モード",{"None","Visible Only","Hidden Only","Color Code"},"None",function(v) S.ESPWallCheck=v end)
+        CT(bd,"チーム除外",true,function(v) S.Team=v RFE() end)
+    end},
+    {title="フィルター",icon="4",build=function(bd)
+        CT(bd,"ヒットボックス",false,function(v) S.Hitbox=v RFH() end)
+        CSl(bd,"HBサイズ",1.5,5,2,1,function(v) S.HBV=v RFH() end,2)
+    end}
+})
+
+CTb("移動","C",{
+    {title="速度ジャンプ",icon="1",build=function(bd)
+        CT(bd,"速度",false,function(v) S.Spd=v AS() end)
+        CT(bd,"ジャンプ",false,function(v) S.Jmp=v AJ() end)
+        CSl(bd,"速度値",16,120,28,0,function(v) S.SpdV=v if S.Spd then AS() end end,16)
+        CSl(bd,"跳力",50,200,80,0,function(v) S.JmpV=v if S.Jmp then AJ() end end,50)
+    end},
+    {title="特殊移動",icon="2",build=function(bd)
+        CT(bd,"飛行",false,function(v) TF(v) if FlyCtrl then FlyCtrl.Visible=v end end)
+        CT(bd,"壁抜け",false,function(v) TNC(v) end)
+        CT(bd,"無限ジャンプ",false,function(v) TIJ(v) end)
+        CSl(bd,"飛行速度",20,200,50,0,function(v) S.FlyV=v end,50)
+    end}
+})
+
+CTb("保護","D",{
+    {title="アンチBAN",icon="1",build=function(bd)
+        local sA
+        local function sy()
+            local al=S.AB_Kick and S.AB_TP and S.AB_Char and S.AB_Remote and S.AB_Move
+            if sA then sA(al,true) end
+        end
+        local _,sa=CT(bd,"全保護",false,function(v)
+            S.AB_Kick=v EK(v)
+            S.AB_TP=v ETP(v)
+            S.AB_Char=v EC(v)
+            S.AB_Remote=v ER(v)
+            S.AB_Move=v EM(v)
+        end)
+        sA=sa
+        CT(bd,"キック防止",false,function(v) S.AB_Kick=v EK(v) sy() end)
+        CT(bd,"TP防止",false,function(v) ETP(v) sy() end)
+        CT(bd,"キャラ保護",false,function(v) EC(v) sy() end)
+        CT(bd,"リモート保護",false,function(v) ER(v) end)
+        CT(bd,"移動検知対策",false,function(v) EM(v) end)
+        CT(bd,"アンチチート無効化",true,function(v) S.AntiAC=v end)
+    end},
+    {title="応用",icon="2",build=function(bd)
+        CT(bd,"アンチフリング",false,function(v) TAF(v) end)
+        CT(bd,"ヒット通知",false,function(v) S.HitNotify=v end)
+        CT(bd,"キルフラッシュ除去",false,function(v) S.NoKillFlash=v end)
+    end}
+})
+
+CTb("視覚","E",{
+    {title="視覚効果",icon="1",build=function(bd)
+        CT(bd,"フルブライト",false,function(v) TFB(v) end)
+        CT(bd,"軽量化",false,function(v) TL(v) end)
+    end},
+    {title="パフォーマンス",icon="2",build=function(bd)
+        CSl(bd,"描画間隔",1,4,1,0,function(v) S.RenderThrottle=v end,1)
+    end}
+})
+
+CTb("HUD","F",{
+    {title="HUD設定",icon="1",build=function(bd)
+        CT(bd,"プレイヤーHUD",false,function(v)
+            S.PlayerHUD=v
+            if not v and PH then PH.Visible=false end
+        end)
+        CT(bd,"最寄り表示",false,function(v) S.NearestPlayerHUD=v end)
+        CT(bd,"ターゲットリング",false,function(v)
+            S.TargetIndicator=v
+            if not v and TI then TI.Visible=false end
+        end)
+        CT(bd,"ターゲット追跡線",false,function(v) S.TracerToTarget=v end)
+    end}
+})
+
+STi(1)
+
+L.CharacterAdded:Connect(function()
+    task.wait(.5)
+    SHD()
+end)
+
+P.PlayerAdded:Connect(function()
+    task.wait(1)
+    SHD()
+end)
+
+getgenv().KataoyaEnhanced={
+    Whitelist={
+        Add=function(n) S.Whitelist[n]=true end,
+        Remove=function(n) S.Whitelist[n]=nil end,
+        Clear=function() S.Whitelist={} end,
+        List=function() return S.Whitelist end
+    },
+    SetPrediction=function(t) S.PredictionType=t end,
+    SetSmoothing=function(s) S.AimSmoothing=s end
+}
+
+local function SP(p)
+    if p==L then return end
+    local pn=p.Name
+    local function oc(ch)
+        CP(pn)
+        RH(pn)
+        task.wait(1)
+        if ch and ch.Parent and ch:FindFirstChild("HumanoidRootPart") then
+            MESP(p)
+            AH(p)
+        end
+    end
+    if p.Character then oc(p.Character) end
+    p.CharacterAdded:Connect(oc)
+    p.CharacterRemoving:Connect(function()
+        CP(pn)
+        RH(pn)
+    end)
+end
+
+for _,p in GP(P) do SP(p) end
+P.PlayerAdded:Connect(SP)
+P.PlayerRemoving:Connect(function(p)
+    CP(p.Name)
+    RH(p.Name)
+end)
+
+task.spawn(function()
+    while task.wait(.8) do
+        for n,d in D do
+            if not d.C or not d.C.Parent then CP(n) end
+        end
+        if S.Spd then
+            local h=L.Character and L.Character:FindFirstChildOfClass("Humanoid")
+            if h and h.WalkSpeed~=S.SpdV then h.WalkSpeed=S.SpdV end
+        end
+    end
+end)
+
+NT("Kataoya v7.0","読み込み完了",3)
